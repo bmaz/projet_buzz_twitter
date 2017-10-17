@@ -134,12 +134,13 @@ class TweetsIndex():
         }
               for tweet in self.format_tweets(tweets, query, event) if "entities" in tweet)
 
-        return helpers.bulk(self.es,to_update,True)
+        return helpers.bulk(self.es,to_update,True, request_timeout=timeout)
 
 if __name__ == "__main__":
     path_to_files = "/home/bmazoyer/Dev/Twitter_OTM/peak_detection/data_vegas/*"
     host = "localhost"
     port = 9200
+    timeout = 30
     DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
     INDEX_NAME = "test"
     index = TweetsIndex(host, port, INDEX_NAME)
