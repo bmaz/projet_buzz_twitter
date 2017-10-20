@@ -1,10 +1,13 @@
 from elasticsearch import Elasticsearch, helpers, exceptions
 from datetime import *
+import time
 from tqdm import tqdm
 import gzip
 import glob
 import json
 import logging
+import threading
+from queue import Queue
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class TweetsIndex():
@@ -135,28 +138,51 @@ class TweetsIndex():
         }
               for tweet in self.format_tweets(tweets, query, event) if "entities" in tweet)
 
-        return helpers.bulk(self.es,to_update,True, request_timeout=timeout)
+        return helpers.bulk(self.es,to_update,True)
+
+def index_queue(index, queue):
+    while True:
+        content, file = queue.get()
+        try:
+            index.storeTweetsWithTag(content, query=file[len(path_to_files):])
+        except Exception as e:
+            logging.error(str(e) + " " + file_name)
+            continue
+        queue.task_done()
 
 if __name__ == "__main__":
     path_to_files = "/home/bmazoyer/Dev/Twitter_OTM/peak_detection/data_vegas/*"
     host = "localhost"
     port = 9200
-    timeout = 30
-    DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
-    INDEX_NAME = "test"
-    index = TweetsIndex(host, port, INDEX_NAME)
+    index_name = "test"
+    index = TweetsIndex(host, port, index_name)
     logging.basicConfig(format='%(asctime)s - %(levelname)s : %(message)s', level=logging.ERROR)
+
+    tweets_queue = Queue()
 
     for file_name in tqdm(glob.glob(path_to_files)):
         with gzip.open(file_name, mode='rt', encoding="utf-8") as f:
-                try:
-                    tweets = (json.loads(line)[2] for line in f.readlines())
-                except Exception as e:
-                    logging.error(str(e) + " " + file_name)
-                try:
-                    res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
-                except Exception as e:
-                    logging.error(str(e) + " " + file_name)
-                    continue
+            try:
+                tweets = (json.loads(line)[2] for line in f.readlines())
+            except Exception as e:
+                logging.error(str(e) + " " + file_name)
+                continue
+            tweets_queue.put((tweets, file_name))
 
+    total = tweets_queue.qsize()
+
+    for i in range(4):
+        t = threading.Thread(target=index_queue, args = (index, tweets_queue))
+        t.start()
+
+    start_time = time.time()
+    while not tweets_queue.empty():
+        remaining = tweets_queue.qsize()
+        percent = int(100*(1 - remaining/total))
+        bar = "=" * int(percent/2) + " " * (50 - int(percent/2))
+        timer = time.time() - start_time
+        m, s = divmod(timer, 60)
+        h, m = divmod(m, 60)
+        print("\r[%s] %d%% %d:%02d:%02d"  % (bar, percent, h, m, s), end="")
+        time.sleep(0.5)
     
