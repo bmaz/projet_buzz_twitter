@@ -1,13 +1,10 @@
 from elasticsearch import Elasticsearch, helpers, exceptions
 from datetime import *
-import time
 from tqdm import tqdm
 import gzip
 import glob
 import json
 import logging
-import threading
-from queue import Queue
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class TweetsIndex():
