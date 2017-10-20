@@ -138,17 +138,12 @@ class TweetsIndex():
         }
               for tweet in self.format_tweets(tweets, query, event) if "entities" in tweet)
 
-        return helpers.bulk(self.es,to_update,True)
+        errors = []
+        for res, item in helpers.parallel_bulk(self.es,to_update,chunk_size=chunk_size, thread_count=thread_count, raise_on_error=False):
+            if not res:
+                errors.append(item)
+        return errors
 
-def index_queue(index, queue):
-    while True:
-        content, file = queue.get()
-        try:
-            index.storeTweetsWithTag(content, query=file[len(path_to_files):])
-        except Exception as e:
-            logging.error(str(e) + " " + file_name)
-            continue
-        queue.task_done()
 
 if __name__ == "__main__":
     path_to_files = "/home/bmazoyer/Dev/Twitter_OTM/peak_detection/data_vegas/*"
@@ -156,6 +151,8 @@ if __name__ == "__main__":
     port = 9200
     index_name = "test"
     index = TweetsIndex(host, port, index_name)
+    thread_count = 5
+    chunk_size = 200
     logging.basicConfig(format='%(asctime)s - %(levelname)s : %(message)s', level=logging.ERROR)
 
     tweets_queue = Queue()
@@ -167,22 +164,6 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(str(e) + " " + file_name)
                 continue
-            tweets_queue.put((tweets, file_name))
-
-    total = tweets_queue.qsize()
-
-    for i in range(4):
-        t = threading.Thread(target=index_queue, args = (index, tweets_queue))
-        t.start()
-
-    start_time = time.time()
-    while not tweets_queue.empty():
-        remaining = tweets_queue.qsize()
-        percent = int(100*(1 - remaining/total))
-        bar = "=" * int(percent/2) + " " * (50 - int(percent/2))
-        timer = time.time() - start_time
-        m, s = divmod(timer, 60)
-        h, m = divmod(m, 60)
-        print("\r[%s] %d%% %d:%02d:%02d"  % (bar, percent, h, m, s), end="")
-        time.sleep(0.5)
-    
+            res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
+            if res != []:
+                print(res)
