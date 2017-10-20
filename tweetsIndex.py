@@ -4,7 +4,7 @@ from tqdm import tqdm
 import gzip
 import glob
 import json
-
+DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class TweetsIndex():
 
@@ -147,7 +147,11 @@ if __name__ == "__main__":
 
     for file_name in tqdm(glob.glob(path_to_files)):
         with gzip.open(file_name, mode='rt', encoding="utf-8") as f:
-                tweets = (json.loads(line)[2] for line in f.readlines())
+                try:
+                    tweets = (json.loads(line)[2] for line in f.readlines())
+                except:
+                    print(file_name)
+                    continue
                 res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
 
     
