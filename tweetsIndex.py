@@ -4,6 +4,7 @@ from tqdm import tqdm
 import gzip
 import glob
 import json
+import logging
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class TweetsIndex():
@@ -144,14 +145,18 @@ if __name__ == "__main__":
     DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
     INDEX_NAME = "test"
     index = TweetsIndex(host, port, INDEX_NAME)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s : %(message)s', level=logging.ERROR)
 
     for file_name in tqdm(glob.glob(path_to_files)):
         with gzip.open(file_name, mode='rt', encoding="utf-8") as f:
                 try:
                     tweets = (json.loads(line)[2] for line in f.readlines())
-                except:
-                    print(file_name)
+                except Exception as e:
+                    logging.error(str(e) + " " + file_name)
+                try:
+                    res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
+                except Exception as e:
+                    logging.error(str(e) + " " + file_name)
                     continue
-                res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
 
     
