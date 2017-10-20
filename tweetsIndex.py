@@ -152,8 +152,6 @@ if __name__ == "__main__":
     chunk_size = 200
     logging.basicConfig(format='%(asctime)s - %(levelname)s : %(message)s', level=logging.ERROR)
 
-    tweets_queue = Queue()
-
     for file_name in tqdm(glob.glob(path_to_files)):
         with gzip.open(file_name, mode='rt', encoding="utf-8") as f:
             try:
