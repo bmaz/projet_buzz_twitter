@@ -1,0 +1,30 @@
+version: '2'
+
+networks:
+  default:
+    external:
+      name: bmnet0
+
+services:
+  elasticsearch:
+    image: 'elasticsearch'
+    ports:
+      - '9292:9200'
+     #  - '9393:9300'
+    volumes:
+      - /rex/local/bmtweet/data/elastic:/usr/share/elasticsearch/data
+
+  kibana:
+    image: 'kibana'
+    ports:
+      - '5656:5601'
+    depends_on:
+      - 'elasticsearch'
+
+  tweets:
+    image: 'docker.rech.priv.ina:5001/bmazoyer/filter-tweets'
+    volumes:
+      - /rex/local/bmtweet:/usr/src/app
+    depends_on:
+      - 'elasticsearch'
+    command: 'python filter.py --path /usr/src/app/data/tweets --host elasticsearch'
