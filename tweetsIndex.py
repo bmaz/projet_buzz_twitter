@@ -83,6 +83,47 @@ class TweetsIndex():
         }
         return self.helpers.scan(self.es, index=self.index, doc_type = "tweets", query=query)
 
+    def search_hashtags(self, *, event):
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "match_phrase": {
+                                "events": event
+                            }
+                        },
+                        {
+                            "exists": {
+                                "field":"hashtags_list"
+                            }
+                        }
+                    ],
+                    "must_not": [
+                        {
+                            "term": {
+                                "hashtags.keyword": "desirdeperchoir"
+                            }
+                        },
+                        {
+                            "term": {
+                                "hashtags.keyword": "afp"
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "hashtags" : {
+                    "terms": {
+                        "field": "hashtags.keyword"
+                    }
+                }
+            }
+        }
+
+        return self.es.search(index=self.index, doc_type = "tweets", body=query, size=0)
     def format_tweets(self, tweets, query, event):
         for tweet in tweets:
             if "id" in tweet:
@@ -162,3 +203,4 @@ if __name__ == "__main__":
             res = index.storeTweetsWithTag(tweets, query=file_name[len(path_to_files):])
             if res != []:
                 print(res)
+
